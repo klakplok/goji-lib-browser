@@ -4,7 +4,7 @@ PACKAGE=browser
 .PHONY: clean install uninstall
 
 all:  $(PACKAGE)
-	cd $(PACKAGE) && make
+	cd $(PACKAGE) && make all doc
 
 $(PACKAGE): $(patsubst %.ml, %.cmxs, $(SOURCES))
 	goji generate $^
