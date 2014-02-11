@@ -56,23 +56,23 @@ let javascript_component =
 
           (* TODO: RangeError *)
           def_function "from_char_code"
-            ~doc:"build a string from a single UTF-16 character code"
+            ~doc:"Build a string from a single UTF-16 character code"
             [ curry_arg "code" (int @@ arg 0) ]
             (call (jsglobal "String.fromCharCode"))
             (abbrv "js_string") ;
           def_function "from_char_codes"
-            ~doc:"build a string from a sequence of UTF-16 character codes"
+            ~doc:"Build a string from a sequence of UTF-16 character codes"
             [ curry_arg "code" (list int @@ unroll ()) ]
             (call (jsglobal "String.fromCharCode"))
             (abbrv "js_string") ;
 
           def_function "from_code_point"
-            ~doc:"build a string from a single UTF-32 code point"
+            ~doc:"(ES6) Build a string from a single UTF-32 code point"
             [ curry_arg "code" (int @@ arg 0) ]
             (call (jsglobal "String.fromCodePoint"))
             (abbrv "js_string") ;
           def_function "from_code_points"
-            ~doc:"build a string from a sequence of UTF-32 code points"
+            ~doc:"(ES6) Build a string from a sequence of UTF-32 code points"
             [ curry_arg "code" (list int @@ unroll ()) ]
             (call (jsglobal "String.fromCodePoint"))
             (abbrv "js_string") ;
@@ -85,28 +85,19 @@ let javascript_component =
             (abbrv "js_string") ;
 
           def_function "repeat"
-            ~doc:"Repeats a string a given number of times"
+            ~doc:"(ES6) Repeats a string a given number of times"
             [ curry_arg "str" (abbrv "js_string" @@ this) ;
               curry_arg "count" (int @@ arg 0) ]
             (call_method "repeat")
             (abbrv "js_string") ;
 
           def_function "slice"
-            ~doc:"Takes a slice of a string between two indexes. \
+            ~doc:"Takes a slice of a string between two indexes (or after an index if [stop] is not specified). \
                   Indexes larger than the length of the string are truncated. \
                   Negative indexes are interpreted as backward offsets from the end of the string"
-            [ curry_arg "str" (abbrv "js_string" @@ this) ;
-              curry_arg "start" (int @@ arg 0) ;
-              curry_arg "stop" (int @@ arg 1) ]
-            (call_method "slice")
-            (abbrv "js_string") ;
-
-          def_function "slice_from"
-            ~doc:"Takes a slice of a string between an index and the end. \
-                  Indexes larger than the length of the string are truncated. \
-                  Negative indexes are interpreted as backward offsets from the end of the string"
-            [ curry_arg "str" (abbrv "js_string" @@ this) ;
-              curry_arg "start" (int @@ arg 0) ]
+            [ curry_arg "start" (int @@ arg 0) ;
+              opt_arg "stop" (int @@ arg 1) ;
+              curry_arg "str" (abbrv "js_string" @@ this) ]
             (call_method "slice")
             (abbrv "js_string") ;
 
@@ -131,8 +122,8 @@ let javascript_component =
             [ opt_arg "use_locale" (bool @@ var "flag") ;
               curry_arg "str" (abbrv "js_string" @@ this) ]
             (test Guard.(var "flag" = bool true)
-                (call_method "toLocaleLowerCase")
-                (call_method "toLowerCase"))
+               (call_method "toLocaleLowerCase")
+               (call_method "toLowerCase"))
             (abbrv "js_string") ;
 
           def_function "uppercase"
@@ -140,8 +131,8 @@ let javascript_component =
             [ opt_arg "use_locale" (bool @@ var "flag") ;
               curry_arg "str" (abbrv "js_string" @@ this) ]
             (test Guard.(var "flag" = bool true)
-                (call_method "toLocaleUpperCase")
-                (call_method "toUpperCase"))
+               (call_method "toLocaleUpperCase")
+               (call_method "toUpperCase"))
             (abbrv "js_string") ;
 
         ] ;
@@ -162,7 +153,7 @@ let javascript_component =
             int ;
 
           def_function "get_code_point"
-            ~doc:"Access the UTF-32 characters of a native JavaScript string. \
+            ~doc:"(ES6) Access the UTF-32 characters of a native JavaScript string. \
                   Note that the index is still an UTF-16 index, this function \
                   just reads two UTF-16 chars to build a UTF-32 one when called \
                   on the first half of a surrogate pair"
@@ -183,7 +174,7 @@ let javascript_component =
 
           def_function "encode_URI"
             ~doc:"Escape non alphanumeric or reserved characters in an URI. \
-                 Only works on a valid URI, otherwise raises \
+                  Only works on a valid URI, otherwise raises \
                   [Invalid_argument \"encode_URI\"]"
             [ curry_arg "str" (abbrv "js_string" @@ arg 0) ]
             (try_catch
@@ -202,7 +193,7 @@ let javascript_component =
             [ curry_arg "str" (abbrv "js_string" @@ arg 0) ]
             (call (jsglobal "encodeURIComponent"))
             (abbrv "js_string") ;
-          
+
         ] ;
 
         section "Parsing" [
@@ -226,8 +217,8 @@ let javascript_component =
 
         section "Search and Replace" [
 
-          def_function "contains_from"
-            ~doc:"Search for a substring starting at a given offset \
+          def_function "contains"
+            ~doc:"(ES6) Search for a substring starting at a given offset \
                   (0 if not specified)"
             [ curry_arg "str" (abbrv "js_string" @@ this) ;
               opt_arg "offset" (int @@ arg 1) ;
@@ -236,7 +227,7 @@ let javascript_component =
             bool ;
 
           def_function "ends_with"
-            ~doc:"Determines if a substring is present and ends at \
+            ~doc:"(ES6) Determines if a substring is present and ends at \
                   a given position (or at the end if not specified)"
             [ curry_arg "str" (abbrv "js_string" @@ this) ;
               opt_arg "offset" (int @@ arg 1) ;
@@ -245,7 +236,7 @@ let javascript_component =
             bool ;
 
           def_function "starts_with"
-            ~doc:"Determines if a substring is present and starts at \
+            ~doc:"(ES6) Determines if a substring is present and starts at \
                   a given position (or at 0 if not specified)"
             [ curry_arg "str" (abbrv "js_string" @@ this) ;
               opt_arg "offset" (int @@ arg 1) ;
@@ -262,13 +253,6 @@ let javascript_component =
             (call_method "indexOf")
             (Option (Guard.(var "root" = Const.int (-1)), int)) ;
 
-          def_function "index_of_regexp"
-            ~doc:"Returns the matching position when successful"
-            [ curry_arg "str" (abbrv "js_string" @@ this) ;
-              curry_arg "pattern" (abbrv "js_regexp" @@ arg 0) ]
-            (call_method "search")
-            (Option (Guard.(var "root" = Const.int (-1)), int)) ;
-
           def_function "last_index_of"
             ~doc:"Search for a substring and return the position \
                   of its last occurence starting at a given offset \
@@ -278,14 +262,6 @@ let javascript_component =
               curry_arg "sub" (abbrv "js_string" @@ arg 0) ]
             (call_method "lastIndexOf")
             (Option (Guard.(var "root" = Const.int (-1)), int)) ;
-
-          def_function "match_regexp"
-            ~doc:"Returns the array on matched groups when successful \
-                  (index 0 contains the whole match)"
-            [ curry_arg "str" (abbrv "js_string" @@ this) ;
-              curry_arg "pattern" (abbrv "js_regexp" @@ arg 0) ]
-            (call_method "match")
-            (nonempty_array_or_null (abbrv "js_string")) ;
 
           def_function "replace"
             ~doc:"Returns the matching position when successful"
@@ -300,6 +276,75 @@ let javascript_component =
                 "replacement" (abbrv "js_string" @@ arg 1) ]
             (call_method "replace")
             (abbrv "js_string") ;
+
+          def_function "split"
+            ~doc:"Splits a string using a separator"
+            [ curry_arg "str" (abbrv "js_string" @@ this) ;
+              curry_arg "sep" (abbrv "js_string" @@ arg 0) ]
+            (call_method "split")
+            (array (abbrv "js_string")) ;
+
+        ] ;
+
+        section "Comparison" (
+          let locale_compare ~doc name usage =
+            def_function name
+              ~doc:"Search for a substring and return the position \
+                    of its last occurence starting at a given offset \
+                    (0 if not specified)"
+              [ curry_arg "left" (abbrv "js_string" @@ this) ;
+                opt_arg
+                  ~doc:"A list of BCP-47 language tags"
+                  "locales" (list string @@ rest ()) ;
+                opt_arg "matcher" (abbrv "locale_matcher" @@ field (var "options") "usage") ;
+                opt_arg "sensitivity" (abbrv "locale_compare_sensitivity" @@ field (var "options") "sensitivity") ;
+                opt_arg "ignore_punctuation" (bool @@ field (var "options") "ignorePunctuation") ;
+                opt_arg "detect_numbers" (bool @@ field (var "options") "numeric") ;
+                opt_arg "case_order" (abbrv "locale_compare_case_order" @@ field (var "options") "caseFirst") ;
+                curry_arg "right" (abbrv "js_string" @@ arg 0) ]
+              (abs "_"
+                 (set_const (field (var "options") "usage") Const.(string usage))
+                 (abs "_"
+                    (set (rest ()) (var "options"))
+                    (call_method "localeCompare")))
+              int
+          in [
+
+            def_type "locale_matcher"
+              (public (simple_string_enum [ "lookup" ; "best fit" ])) ;
+
+            def_type "locale_compare_sensitivity"
+              (public (simple_string_enum [ "base" ; "accent" ; "case" ; "variant" ])) ;
+
+            def_type "locale_compare_case_order"
+              (public (string_enum [ "Uppercase_first", "upper" ; "Lowercase_first", "lower" ; "Locale_default", "false" ])) ;
+
+            locale_compare
+              ~doc:"Compare two JavScript strings using the specified locale, \
+                    considering similar strings as equivalent" 
+              "locale_compare_for_searching" "search" ;
+
+            locale_compare
+              ~doc:"Compare two JavScript strings using the specified locale, \
+                    ordering similar strings" 
+              "locale_compare_for_sorting" "sort" ;
+          ]) ;
+
+        section "Regular expressions" [
+          def_function "index_of_regexp"
+            ~doc:"Returns the matching position when successful"
+            [ curry_arg "str" (abbrv "js_string" @@ this) ;
+              curry_arg "pattern" (abbrv "js_regexp" @@ arg 0) ]
+            (call_method "search")
+            (Option (Guard.(var "root" = Const.int (-1)), int)) ;
+
+          def_function "match_regexp"
+            ~doc:"Returns the array on matched groups when successful \
+                  (index 0 contains the whole match)"
+            [ curry_arg "str" (abbrv "js_string" @@ this) ;
+              curry_arg "pattern" (abbrv "js_regexp" @@ arg 0) ]
+            (call_method "match")
+            (nonempty_array_or_null (abbrv "js_string")) ;
 
           def_function "replace_regexp"
             ~doc:"Returns the matching position when successful"
@@ -316,64 +361,12 @@ let javascript_component =
             (call_method "replace")
             (abbrv "js_string") ;
 
-          def_function "split"
-            ~doc:"Splits a string using a separator"
-            [ curry_arg "str" (abbrv "js_string" @@ this) ;
-              curry_arg "sep" (abbrv "js_string" @@ arg 0) ]
-            (call_method "split")
-            (array (abbrv "js_string")) ;
-
           def_function "split_regexp"
             ~doc:"Splits a string using a regexp separator"
             [ curry_arg "str" (abbrv "js_string" @@ this) ;
               curry_arg "sep" (abbrv "js_regexp" @@ arg 0) ]
             (call_method "split")
             (array (abbrv "js_string")) ;
-
-        ] ;
-
-        let locale_compare ~doc name usage =
-          def_function name
-            ~doc:"Search for a substring and return the position \
-                  of its last occurence starting at a given offset \
-                  (0 if not specified)"
-            [ curry_arg "left" (abbrv "js_string" @@ this) ;
-              opt_arg
-                ~doc:"A list of BCP-47 language tags"
-                "locales" (list string @@ rest ()) ;
-              opt_arg "matcher" (abbrv "locale_matcher" @@ field (var "options") "usage") ;
-              opt_arg "sensitivity" (abbrv "locale_compare_sensitivity" @@ field (var "options") "sensitivity") ;
-              opt_arg "ignore_punctuation" (bool @@ field (var "options") "ignorePunctuation") ;
-              opt_arg "detect_numbers" (bool @@ field (var "options") "numeric") ;
-              opt_arg "case_order" (abbrv "locale_compare_case_order" @@ field (var "options") "caseFirst") ;
-              curry_arg "right" (abbrv "js_string" @@ arg 0) ]
-            (abs "_"
-               (set_const (field (var "options") "usage") Const.(string usage))
-               (abs "_"
-                  (set (rest ()) (var "options"))
-                  (call_method "localeCompare")))
-            int
-        in
-        section "Comparison" [
-
-          def_type "locale_matcher"
-            (public (simple_string_enum [ "lookup" ; "best fit" ])) ;
-
-          def_type "locale_compare_sensitivity"
-            (public (simple_string_enum [ "base" ; "accent" ; "case" ; "variant" ])) ;
-
-          def_type "locale_compare_case_order"
-            (public (string_enum [ "Uppercase_first", "upper" ; "Lowercase_first", "lower" ; "Locale_default", "false" ])) ;
-
-          locale_compare
-            ~doc:"Compare two JavScript strings using the specified locale, \
-                  considering similar strings as equivalent" 
-            "locale_compare_for_searching" "search" ;
-
-          locale_compare
-            ~doc:"Compare two JavScript strings using the specified locale, \
-                  ordering similar strings" 
-            "locale_compare_for_sorting" "sort" ;
         ]
       ] ;
       structure "js_obj"
@@ -520,14 +513,14 @@ let javascript_component =
       ] ;
       structure "js_date"
         ~doc:"Operations on JavaScript date objects" [
-        
+
         section "Construction" [
           def_function "now"
             ~doc:"Create a date object with the current time"
             []
             (call_constructor (jsglobal "Date"))
             (abbrv "js_date") ;
-          
+
           def_function "create"
             ~doc:"Create a Date from components"
             [ labeled_arg "ymd" ~doc:"(year, month, day)"
@@ -570,8 +563,8 @@ let javascript_component =
             [ opt_arg "use_locale" (bool @@ var "flag") ;
               curry_arg "date" (abbrv "js_date" @@ this) ]
             (test Guard.(var "flag" = bool true)
-                (call_method "toLocaleString")
-                (call_method "toString"))
+               (call_method "toLocaleString")
+               (call_method "toString"))
             string ;
 
           def_function "to_date_string"
@@ -579,8 +572,8 @@ let javascript_component =
             [ opt_arg "use_locale" (bool @@ var "flag") ;
               curry_arg "date" (abbrv "js_date" @@ this) ]
             (test Guard.(var "flag" = bool true)
-                (call_method "toLocaleDateString")
-                (call_method "toDateString"))
+               (call_method "toLocaleDateString")
+               (call_method "toDateString"))
             string ;
 
           def_function "to_time_string"
@@ -588,8 +581,8 @@ let javascript_component =
             [ opt_arg "use_locale" (bool @@ var "flag") ;
               curry_arg "date" (abbrv "js_date" @@ this) ]
             (test Guard.(var "flag" = bool true)
-                (call_method "toLocaleTimeString")
-                (call_method "toTimeString"))
+               (call_method "toLocaleTimeString")
+               (call_method "toTimeString"))
             string ;
 
         ] ;
@@ -601,7 +594,7 @@ let javascript_component =
             [ curry_arg "date" (abbrv "js_date" @@ this) ]
             (call_method "getTimezoneOffset")
             int ;
-          
+
           def_function "year"
             ~doc:"Extract the full year from a Date object"
             [ opt_arg "utc" (bool @@ var "flag") ;
@@ -675,9 +668,9 @@ let javascript_component =
             int ;
 
         ] ;
-        
+
         section "Modification" [
-          
+
           def_function "set_year"
             ~doc:"Set the full year of a Date object"
             [ opt_arg "utc" (bool @@ var "flag") ;
@@ -747,8 +740,150 @@ let javascript_component =
                (call_method "setUTCMilliseconds")
                (call_method "setMilliseconds"))
             void ;
+        ] ;
+      ] ;
 
-          ];
+      structure "js_math"
+        ~doc:"Predefined JavaScript Math functions" (
+        let op0 n doc =
+          def_function n ~doc []
+            (call (field (jsglobal "Math") n))
+            float
+        and op1 n doc =
+          def_function n ~doc
+            [ curry_arg "x" (float @@ arg 0) ]
+            (call (field (jsglobal "Math") n))
+            float
+        and op2 n doc =
+          def_function n ~doc
+            [ curry_arg "x" (float @@ arg 0) ;
+              curry_arg "y" (float @@ arg 1) ]
+            (call (field (jsglobal "Math") n))
+            float
+        and opn n doc =
+          def_function n ~doc
+            [ curry_arg "xs" (float @@ unroll ()) ]
+            (call (field (jsglobal "Math") n))
+            float
+        and cst n doc =
+          def_value (String.lowercase n) ~doc (get (field (jsglobal "Math") n)) float
+        in [
+          section "Constants" [
+            cst "E" "Euler's constant and the base of natural logarithms, approximately 2.718" ;
+            cst "LN2" "Natural logarithm of 2, approximately 0.693" ;
+            cst "LN10" "Natural logarithm of 10, approximately 2.303" ;
+            cst "LOG2E" "Base 2 logarithm of E, approximately 1.443" ;
+            cst "LOG10E" "Base 10 logarithm of E, approximately 0.434" ;
+            cst "PI" "Ratio of the circumference of a circle to its diameter, approximately 3.14159" ;
+            cst "SQRT1_2" "Square root of 1/2; equivalently, 1 over the square root of 2, approximately 0.707" ;
+            cst "SQRT2" "Square root of 2, approximately 1.414" ;
+          ] ;
+          section "Operations on numbers" [
+            op1 "abs" "Returns the absolute value of a number" ;
+            op1 "acos" "Returns the arccosine of a number" ;
+            op1 "acosh" "(ES6) Returns the hyperbolic arccosine of a number" ;
+            op1 "asin" "Returns the arcsine of a number" ;
+            op1 "asinh" "(ES6) Returns the hyperbolic arcsine of a number" ;
+            op1 "atan" "Returns the arctangent of a number" ;
+            op1 "atanh" "(ES6) Returns the hyperbolic arctangent of a number" ;
+            op2 "atan2" "Returns the arctangent of the quotient of its arguments" ;
+            op1 "cbrt" "(ES6) Returns the cube root of a number" ;
+            op1 "ceil" "Returns the smallest integer greater than or equal to a number" ;
+            op1 "cos" "Returns the cosine of a number" ;
+            op1 "cosh" "(ES6) Returns the hyperbolic cosine of a number" ;
+            op1 "exp" "Returns Ex, where x is the argument, and E is Euler's constant (2.718...), the base of the natural logarithm" ;
+            op1 "expm1" "(ES6) Returns subtracting 1 from exp(x)" ;
+            op1 "floor" "Returns the largest integer less than or equal to a number" ;
+            op1 "fround" "Returns the nearest single precision float representation of a number" ;
+            opn "hypot" "Returns the square root of the sum of squares of its arguments" ;
+            op1 "imul" "(ES6) Returns the result of a 32-bit integer multiplication" ;
+            op1 "log" "Returns the natural logarithm of a number" ;
+            op1 "log1p" "(ES6) Returns the natural logarithm of 1 + x of a number" ;
+            op1 "log10" "(ES6) Returns the base 10 logarithm of x" ;
+            op1 "log2" "(ES6) Returns the base 2 logarithm of x" ;
+            opn "max" "Returns the largest of zero or more numbers" ;
+            opn "min" "Returns the smallest of zero or more numbers" ;
+            op2 "pow" "Returns base to the exponent power" ;
+            op0 "random" "Returns a pseudo-random number between 0 and 1" ;
+            op1 "round" "Returns the value of a number rounded to the nearest integer" ;
+            op1 "sign" "(ES6) Returns the sign of the x, indicating whether x is positive, negative or zero" ;
+            op1 "sin" "Returns the sine of a number" ;
+            op1 "sinh" "(ES6) Returns the hyperbolic sine of a number" ;
+            op1 "sqrt" "Returns the positive square root of a number" ;
+            op1 "tan" "Returns the tangent of a number" ;
+            op1 "tanh" "(ES6) Returns the hyperbolic tangent of a number" ;
+            op1 "trunc" "(ES6) Returns the integral part of the number x, removing any fractional digits" ;
+          ]
+        ]) ;
+      structure "js_regexp"
+        ~doc:"Operations on JavaScript regular expressions" [
+        def_function "create"
+          ~doc:"Compile a regular expression"
+          [ opt_arg "global" (bool @@ var "g_flag") ;
+            opt_arg "multiline" (bool @@ var "m_flag") ;
+            opt_arg "ignore_case" (bool @@ var "i_flag") ;
+            opt_arg "sticky" (bool @@ var "y_flag") ;
+            curry_arg "pattern" (string @@ arg 0) ]
+          (seq [
+              test' Guard.(var "g_flag" = bool true) (set_const (rest ~site:"cat" ()) (Const.string "g")) ;
+              test' Guard.(var "m_flag" = bool true) (set_const (rest ~site:"cat" ()) (Const.string "m")) ;
+              test' Guard.(var "i_flag" = bool true) (set_const (rest ~site:"cat" ()) (Const.string "i")) ;
+              test' Guard.(var "y_flag" = bool true) (set_const (rest ~site:"cat" ()) (Const.string "y")) ;
+              (abs "flags" (call ~site:"cat" (jsglobal "String.concat"))
+                 (seq [ set (arg 1) (var "flags") ;
+                        (call_constructor (jsglobal "Regexp")) ])) ])
+          (abbrv "js_regexp") ;
+
+        def_function "last_index"
+          ~doc:"The index at which to start the next match"
+          [ curry_arg "str" (string @@ this) ]
+          (get (field this "lastIndex"))
+          int ;
+
+        def_function "find"
+          ~doc:"Returns the matching position when successful"
+          [ curry_arg "str" (string @@ this) ;
+            curry_arg "pattern" (abbrv "js_regexp" @@ arg 0) ]
+          (call_method "search")
+          (Option (Guard.(var "root" = Const.int (-1)), int)) ;
+
+        def_function "test"
+          ~doc:"Tests if a string matches a regexp"
+          [ curry_arg "pattern" (abbrv "js_regexp" @@ this) ;
+            curry_arg "str" (string @@ arg 0) ]
+          (call_method "test")
+          bool ;
+
+        def_function "exec"
+          ~doc:"Returns the array on matched groups when successful \
+                (index 0 contains the whole match)"
+          [ curry_arg "pattern" (abbrv "js_regexp" @@ this) ;
+            curry_arg "str" (string @@ arg 0) ]
+          (call_method "exec")
+          (nonempty_array_or_null string) ;
+
+        def_function "replace"
+          ~doc:"Returns the matching position when successful"
+          [ curry_arg "str" (string @@ this) ;
+            curry_arg ~doc:"the pattern to find and replace"
+              "pattern" (abbrv "js_regexp" @@ arg 0)  ;
+            curry_arg ~doc:"the replacement, in which \
+                            [$&] is the matched substring, \
+                            [$$] is a dollar sign, \
+                            [$^] is the part of the original string before the match, \
+                            [$'] the part after and \
+                            [$n] the [n]th matched group"
+              "replacement" (string @@ arg 1) ]
+          (call_method "replace")
+          string ;
+
+        def_function "split"
+          ~doc:"Splits a string using a regexp separator"
+          [ curry_arg "str" (string @@ this) ;
+            curry_arg "sep" (abbrv "js_regexp" @@ arg 0) ]
+          (call_method "split")
+          (array string) ;
+
       ]
     ]
 
