@@ -33,14 +33,15 @@ let javascript_component =
       structure "js_string"
         ~doc:"Operations on native JavaScript strings" [
 
+        def_function "to_string"
+          ~doc:"Convert a native JavaScript UTF-16 string to an \
+                UTF-8 encoded OCaml string"
+          [ curry_arg "str" (abbrv "js_string" @@ var "tmp") ]
+          (get (var "tmp"))
+          string ;
+
         section "Construction" [
 
-          def_function "to_string"
-            ~doc:"Convert a native JavaScript UTF-16 string to an \
-                  UTF-8 encoded OCaml string"
-            [ curry_arg "str" (abbrv "js_string" @@ var "tmp") ]
-            (get (var "tmp"))
-            string ;
           def_function "of_string"
             ~doc:"Convert an OCaml string, expected to be UTF-8 encoded, \
                   to a native JavaScript UTF-16 string"
@@ -49,9 +50,11 @@ let javascript_component =
             (abbrv "js_string") ;
 
           def_function "coerce_string"
-            ~doc:"Use a JavaScript value as a JavaScript string (may raise Invalid_argument)"
-            [ curry_arg "v" (abbrv "js_value" @@ var "tmp") ]
-            (var_instanceof "tmp" "String")
+            ~doc:"Use a JavaScript value as a JavaScript string"
+            [ curry_arg "v" (abbrv "js_value" @@ arg 0) ]
+            (abs "string_obj"
+               (call_constructor (jsglobal "String"))
+               (call_method ~sto:(var "string_obj") "valueOf"))
             (abbrv "js_string") ;
 
           (* TODO: RangeError *)
@@ -412,6 +415,27 @@ let javascript_component =
             ~doc:"At last, we have it !"
             (get (jsglobal "null"))
             (abbrv "js_object") ;
+          def_function "get_property"
+            ~doc:"Gets a property of the object. \
+                  May raise [Invalid_argument \"Js_obj.set_property\"]."
+            [ curry_arg "obj" (abbrv "js_object" @@ this) ;
+              curry_arg "name" (string @@ var "name") ]
+            (try_catch
+               ~exns:[ Guard.(root = obj "TypeError"
+                              || raise "Invalid_argument \"Js_obj.set_property\""), Const.undefined ]
+                 (get (acc this (var "name"))))
+            void ;
+          def_function "set_property"
+            ~doc:"Sets a property of the object. \
+                  May raise [Invalid_argument \"Js_obj.set_property\"]."
+            [ curry_arg "obj" (abbrv "js_object" @@ this) ;
+              curry_arg "name" (string @@ var "name") ;
+              curry_arg "v" (abbrv "js_value" @@ var "v") ]
+            (try_catch
+               ~exns:[ Guard.(root = obj "TypeError"
+                              || raise "Invalid_argument \"Js_obj.set_property\""), Const.undefined ]
+                 (set (acc this (var "name")) (var "v")))
+            void ;
           def_type "property_descriptor"
             (public (record [
                  row "configurable" (bool @@ field root "configurable") ;
@@ -463,6 +487,11 @@ let javascript_component =
             [ curry_arg "obj" (abbrv "js_object" @@ arg 0) ]
             (call (jsglobal "Object.getOwnPropertyNames"))
             (list string) ;
+          def_function "has_own_property"
+            ~doc:"Tells if a property is defined by the object  (and not one of its prototypes)"
+            [ curry_arg "obj" (abbrv "js_object" @@ this) ]
+            (call_method "hasOwnProperty")
+            bool ;
           def_function "keys"
             ~doc:"Get the names of all the properties that are defined by this object (and not inherited) and enumerable"
             [ curry_arg "obj" (abbrv "js_object" @@ arg 0) ]
@@ -479,6 +508,12 @@ let javascript_component =
               curry_arg "proto" (abbrv "js_object" @@ arg 1)]
             (call (jsglobal "Object.setPrototypeOf"))
             void ;
+          def_function "is_prototype_of"
+            ~doc:"Tells if this object is a prototype of another"
+            [ curry_arg "obj" (abbrv "js_object" @@ this) ;
+              curry_arg "son" (abbrv "js_object" @@ arg 0) ]
+            (call_method "isPrototypeOf")
+            bool ;
           def_function "prevent_extensions"
             ~doc:"Makes an object non extensible"
             [ curry_arg "obj" (abbrv "js_object" @@ arg 0) ]
@@ -884,6 +919,195 @@ let javascript_component =
           (call_method "split")
           (array string) ;
 
+      ] ;
+      structure "TypedArray"
+        ~doc:"(ES6) Monomorphic arrays" [
+        def_type
+          ~doc:"Generic typed arrays"
+          "ta" (abstract any) ;
+        def_type
+          ~doc:"Typed array kinds"
+          "ta_kind" (public (variant [
+              constr ~doc:"Signed, 8-bit integers" "Int8" Guard.(root == jsglobal "Int8Array") [] ;
+              constr ~doc:"Signed, 16-bit integers" "Int16" Guard.(root == jsglobal "Int16Array") [] ;
+              constr ~doc:"Signed, 32-bit integers" "Int32" Guard.(root == jsglobal "Int32Array") [] ;
+              constr ~doc:"Unsigned, 8-bit integers" "Uint8" Guard.(root == jsglobal "Uint8Array") [] ;
+              constr ~doc:"Unsigned, 16-bit integers" "Uint16" Guard.(root == jsglobal "Uint16Array") [] ;
+              constr ~doc:"Unsigned, 32-bit integers" "Uint32" Guard.(root == jsglobal "Uint32Array") [] ;
+              constr ~doc:"32-bit floats" "Float32" Guard.(root == jsglobal "Float32Array") [] ;
+              constr ~doc:"64-bit floats" "Float64" Guard.(root == jsglobal "Float64Array") [] ;
+            ])) ;
+        def_type
+          ~doc:"Internal storage of typed arrays, a sequence of bytes \
+                that can be shared between several typed arrays to have \
+                different views over these bytes"
+          "ta_buffer" (abstract any) ;
+        section "Access and Modification" [
+          def_function "length"
+            ~doc:"The number of elements of a typed array"
+            [ curry_arg "array" (abbrv "ta" @@ this) ]
+            (get (field this "length"))
+            int ;
+          def_function "kind"
+            ~doc:"The number of elements of a typed array"
+            [ curry_arg "array" (abbrv "ta" @@ this) ]
+            (get (field this "constructor"))
+            (abbrv "ta_kind") ;
+          def_function "get"
+            ~doc:"Access the content of a cell in the typed array"
+            [ curry_arg "array" (abbrv "ta" @@ var "a") ;
+              curry_arg "index" (int @@ var "f") ]
+            (get (acc (var "a") (var "f")))
+            float ;
+          def_function "set"
+            ~doc:"Assigns the content of a cell in the typed array, \
+                  converting the value according to the type of the array"
+            [ curry_arg "array" (abbrv "ta" @@ var "a") ;
+              curry_arg "index" (int @@ var "f") ;
+              curry_arg "v" (float @@ var "v") ]
+            (set (acc (var "a") (var "f")) (var "v"))
+            void ;
+          def_function "blit"
+            ~doc:"Writes the contents of another array [at] an offset. \
+                  Values are converted according to the type of the destination array."
+            [ curry_arg "dst" (abbrv "ta" @@ this) ;
+              opt_arg "at" (int @@ rest ()) ;
+              curry_arg "src" (abbrv "ta" @@ arg 0) ]
+            (call_method "set")
+            void ;
+          def_function "blit_floats"
+            ~doc:"Writes a series of values [at] an offset. \
+                  Floats are converted according to the type of the array."
+            [ curry_arg "dst" (abbrv "ta" @@ this) ;
+              opt_arg "at" (int @@ rest ()) ;
+              curry_arg "src" (array float @@ arg 0) ]
+            (call_method "set")
+            void ;
+          def_function "blit_ints"
+            ~doc:"Writes a series of ints [at] an offset. \
+                  Ints are converted according to the type of the array."
+            [ curry_arg "dst" (abbrv "ta" @@ this) ;
+              opt_arg "at" (int @@ rest ()) ;
+              curry_arg "src" (array int @@ arg 0) ]
+            (call_method "set")
+            void ;
+        ] ;
+        section "Constructors" [
+          def_function ("create_typed_array")
+            ~doc:("Create a typed array of values of type [kind]")
+            [ curry_arg "kind" (abbrv "ta_kind" @@ var "cstr") ;
+              curry_arg "size" (int @@ arg 0) ]
+            (call_constructor (var "cstr"))
+            (abbrv "ta") ;
+          def_function ("copy_typed_array")
+            ~doc:("Create a typed array of values of type [kind] \
+                   copying (and converting if necessary) the original values")
+            [ curry_arg "kind" (abbrv "ta_kind" @@ var "cstr") ;
+              curry_arg "original" (abbrv "ta" @@ arg 0) ]
+            (call_constructor (var "cstr"))
+            (abbrv "ta")
+        ] ;
+        section "Working with Buffers" [
+          def_function "create_array_buffer"
+            ~doc:"Builds a new byte array buffer, to be wrapped in typed arrays"
+            [ curry_arg "len" (int @@ arg 0) ]
+            (call_constructor (jsglobal "ArrayBuffer"))
+            (abbrv "ta_buffer");
+          def_function "array_buffer_length"
+            ~doc:"Get the number of bytes of a byte array buffer"
+            [ curry_arg "buf" (abbrv "ta_buffer" @@ this)]
+            (get (field this "byteLength"))
+            int ;
+          def_function "get_array_buffer"
+            ~doc:"Access the underlying byte array buffer of a typed array"
+            [ curry_arg "array" (abbrv "ta" @@ this) ]
+            (get (field this "buffer"))
+            (abbrv "ta_buffer") ;
+          def_function "get_array_buffer_offset"
+            ~doc:"Access the offset in te underlying byte array buffer of a typed array"
+            [ curry_arg "array" (abbrv "ta" @@ this) ]
+            (get (field this "byteOffset"))
+            int ;
+          def_function "slice"
+            ~doc:"Returns the sub array between [start] and [stop] (the end if not specified). \
+                  This only creates a new view over the same buffer, so that the data are shared \
+                  between the input array and the slice."
+            [ curry_arg "dst" (abbrv "ta" @@ this) ;
+              opt_arg "stop" (int @@ rest ()) ;
+              curry_arg "start" (abbrv "ta" @@ arg 0) ]
+            (call_method "subarray")
+            void ;
+          def_function ("create_typed_array_view")
+            ~doc:("Create a typed array of values of type [kind] \
+                   over an existing byte array buffer")
+            [ curry_arg "kind" (abbrv "ta_kind" @@ var "cstr") ;
+              curry_arg "buffer" (abbrv "ta_buffer" @@ arg 0) ]
+            (call_constructor (var "cstr"))
+            (abbrv "ta") ;
+          def_function "create_typed_array_partial_view"
+            ~doc:("Create a typed array of values of type [kind] \
+                   over an existing byte array buffer. \
+                   May fail with [Invalid_argument \"create_typed_array_partial_view\"] \
+                   if [offset] is not aligned correctly of [length] is too big.")
+            [ curry_arg "kind" (abbrv "ta_kind" @@ var "cstr") ;
+              curry_arg "buffer" (abbrv "ta_buffer" @@ arg 0) ;
+              curry_arg "offset" (int @@ arg 1)  ;
+              curry_arg "length" (int @@ arg 2) ]
+            (try_catch
+               ~exns:[ Guard.(root == jsglobal "INDEX_SIZE_ERR"
+                              || raise ("Invalid_argument \"create_typed_array_partial_view\"")), Const.undefined ]
+               (call_constructor (var "cstr")))
+            (abbrv "ta")
+        ]
+      ] ;
+      structure "js_map"
+        ~doc:"(ES6) JavaScript's attempt at a map structure" [
+        def_type "map"
+          ~tparams:["+'a"]
+          ~doc:"JavaScript's attempt at a map structure, \
+                accepts anything as keys, with polymorphic pointer equality for objects, \
+                contents equality for strings and floats, except \
+                that all NaN are considered equal"
+          (abstract any) ;
+        def_function "create"
+          ~doc:"Build a new, empty map. Bindings are weak \
+                references if [weak] is true ([false]  by default)."
+          [ opt_arg "weak" (bool @@ var "weak_flag")]
+          (test
+             Guard.(var "weak_flag" = bool true)
+             (call_constructor (jsglobal "WeakMap"))
+             (call_constructor (jsglobal "Map")))
+          (abbrv ~tparams:[param "'a"] "map") ;
+        def_function "clear"
+          ~doc:"Removes all bindings"
+          [ curry_arg "map" (abbrv ~tparams:[param "'a"] "map" @@ this)]
+          (call_method "clear")
+          void ;
+        def_function "has"
+          ~doc:"Finds a specific binding"
+          [ curry_arg "map" (abbrv ~tparams:[param "'a"] "map" @@ this) ;
+            curry_arg "key" (param "'b" @@ arg 0) ]
+          (call_method "has")
+          bool ;
+        def_function "get"
+          ~doc:"Finds a specific binding"
+          [ curry_arg "map" (abbrv ~tparams:[param "'a"] "map" @@ this) ;
+            curry_arg "key" (param "'b" @@ arg 0) ]
+          (call_method "get")
+          (option_undefined (param "'a")) ;
+        def_function "delete"
+          ~doc:"Removes a specific binding"
+          [ curry_arg "map" (abbrv ~tparams:[param "'a"] "map" @@ this) ;
+            curry_arg "key" (param "'b" @@ arg 0) ]
+          (call_method "delete")
+          void ;
+        def_function "delete"
+          ~doc:"Removes a specific binding"
+          [ curry_arg "map" (abbrv ~tparams:[param "'a"] "map" @@ this) ;
+            curry_arg "key" (param "'b" @@ arg 0) ;
+            curry_arg "v" (param "'a" @@ arg 1)]
+          (call_method "set")
+          void
       ]
     ]
 
