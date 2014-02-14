@@ -423,7 +423,7 @@ let javascript_component =
             (try_catch
                ~exns:[ Guard.(root = obj "TypeError"
                               || raise "Invalid_argument \"Js_obj.set_property\""), Const.undefined ]
-                 (get (acc this (var "name"))))
+               (get (acc this (var "name"))))
             void ;
           def_function "set_property"
             ~doc:"Sets a property of the object. \
@@ -434,7 +434,7 @@ let javascript_component =
             (try_catch
                ~exns:[ Guard.(root = obj "TypeError"
                               || raise "Invalid_argument \"Js_obj.set_property\""), Const.undefined ]
-                 (set (acc this (var "name")) (var "v")))
+               (set (acc this (var "name")) (var "v")))
             void ;
           def_type "property_descriptor"
             (public (record [
@@ -1111,46 +1111,213 @@ let javascript_component =
       ]
     ]
 
-let document_component =
+let browser_component =
   register_component
     ~license:Goji_license.lgpl_v3
-    ~doc:"DOM (Document Object Model) types and functions"
-    browser_package "Document"
-    [ def_type
-        ~doc:"The type of generic Dom nodes"
-        "node" (abstract any) ;
-      def_function "body"
-        ~doc:"Retrives the body of the main document"
-        []
-        (get (jsglobal "document.body"))
-        (abbrv "node") ;
-      def_function "get_element_by_id"
-        ~doc:"Retrieve a DOM node from its ID in the main document"
-        [ curry_arg "n" (abbrv "node" @@ arg 0) ]
-        (call (jsglobal "document.getElementById"))
-        (option_null (abbrv "node")) ;
-      def_function "get_elements_by_name"
-        ~doc:"Retrieve the list of nodes with a given tag"
-        [ curry_arg "n" (abbrv "node" @@ arg 0) ]
-        (call (jsglobal "document.getElementsByTagName"))
-        (list (abbrv "node")) ;
-      def_function "get_elements_by_name"
-        ~doc:"Retrieve the list of nodes with a given name attribute"
-        [ curry_arg "n" (abbrv "node" @@ arg 0) ]
-        (call (jsglobal "document.getElementsByName"))
-        (list (abbrv "node")) ;
-      def_function "get_elements_by_class"
-        ~doc:"Retrieve the list of nodes with a given CSS class attribute"
-        [ curry_arg "n" (abbrv "node" @@ arg 0) ]
-        (call (jsglobal "document.getElementsByClassName"))
-        (list (abbrv "node")) ;
-      map_method "node" "appendChild" ~rename:"append"
-        ~doc:"Adds a new child to a node after its existing ones"
-        [ curry_arg "child" (abbrv "node" @@ arg 0) ]
-        void ;
-      def_function "create"
-        ~doc:"Build a new node from its tag (in the main document)"
-        [ curry_arg "tag" (string @@ arg 0) ]
-        (call_method ~sto:(jsglobal "document") "createElement")
-        (abbrv "node")
+    ~doc:"Browser specific types and functions"
+    browser_package "Browser" [
+    structure "DOM"
+      ~doc:"Operations on the document" [
+      section "Types and Cercions" [ 
+
+        def_type
+          ~doc:"A specific type for element nodes (named markups in HTML)."
+          "element" (abstract any) ;
+
+        def_type
+          ~doc:"A specific type for text nodes."
+          "text" (abstract any) ;
+
+        def_type
+          ~doc:"A specific type for document nodes."
+          "document" (abstract any) ;
+
+        def_type
+          ~doc:"A specific type for comment nodes."
+          "comment" (abstract any) ;
+
+        def_type
+          ~doc:"A node in the document tree."
+          "node"
+          (public
+             (variant
+                (List.map
+                   (fun n ->
+                      let cap = (String.capitalize n) in
+                      constr cap Guard.(root = obj cap) [ abbrv n ])
+                   [ "element" ; "text" ; "document" ; "comment" ]))) ;
+
+        group
+          (List.map
+             (fun n ->
+                group [
+                  def_function ("as_" ^ n)
+                    ~doc:("Cast any node as some " ^ n
+                          ^ " if possible, otherwise raise [Invalid_argument \"as_" ^ n ^ "\"]")
+                    [ curry_arg "n" (abbrv "node" @@ var "tmp") ]
+                    (test
+                       Guard.(var "tmp" = obj (String.capitalize n)
+                              || raise ("Invalid_argument \"as_" ^ n ^ "\""))
+                       (get (var "tmp"))
+                       (get (var "tmp")))
+                    (abbrv n) ;
+                  def_function (n ^ "_as_node")
+                    ~doc:("Cast a specific " ^ n ^ " node as a generic node")
+                    [ curry_arg "n" (abbrv n @@ var "tmp") ]
+                    (get (var "tmp"))
+                    (abbrv "node") ;
+                ])
+             [ "element" ; "text" ; "document" ; "comment" ]) ;
+
+      ] ;
+
+      section "Constructors" [
+
+        def_value "document"
+          ~doc:"Retrives the main document"
+          (get (jsglobal "document"))
+          (abbrv "document") ;
+
+        def_function "create_element"
+          ~doc:"Build a new element node from its tag (in the main document)"
+          [ curry_arg "tag" (string @@ arg 0) ]
+          (call_method ~sto:(jsglobal "document") "createElement")
+          (abbrv "element") ;
+
+        def_function "create_element_mode"
+          ~doc:"Build a new element node from its tag (in the main document) \
+                and returns it as a generic node"
+          [ curry_arg "tag" (string @@ arg 0) ]
+          (call_method ~sto:(jsglobal "document") "createElement")
+          (abbrv "node") ;
+
+        def_function "create_text"
+          ~doc:"Build a new text node from its contents (in the main document)"
+          [ curry_arg "tag" (string @@ arg 0) ]
+          (call_method ~sto:(jsglobal "document") "createTextNode")
+          (abbrv "text") ;
+
+        def_function "create_text_node"
+          ~doc:"Build a new text node from its contents (in the main document) \
+                and returns it as a generic node"
+          [ curry_arg "tag" (string @@ arg 0) ]
+          (call_method ~sto:(jsglobal "document") "createTextNode")
+          (abbrv "node") ;
+
+      ] ;
+
+      section "Node operations" [
+
+        def_function "base_URI"
+          [ curry_arg "node" (abbrv "node" @@ this) ]
+          (get (field this "baseURI"))
+          string ;
+
+        map_method "node" "appendChild" ~rename:"append_child"
+          ~doc:"Adds a new child to a node after its existing ones"
+          [ curry_arg "child" (abbrv "node" @@ arg 0) ]
+          void ;
+
+        def_method "node" "text_content"
+          ~doc:"Retrieves the textual content of the node and its descendants"
+          [] (get (field this "textContent")) string ;
+
+        def_method "node" "child_nodes"
+          ~doc:"Retrieves the current sequence of children of a node"
+          [] (get (field this "childNodes")) (list (abbrv "node")) ;
+
+        def_method "node" "parent_element"
+          ~doc:"Retrieves the parent element of a node, if any"
+          [] (get (field this "parentElement")) (option_null (abbrv "element")) ;
+
+        def_method "node" "owner_document"
+          ~doc:"Retrieves the root of the document to which this node belongs, if any"
+          [] (get (field this "ownerDocument")) (option_null (abbrv "document")) ;
+
+        def_method "node" "parent_node"
+          ~doc:"Retrieves the parent node of a node, if any"
+          [] (get (field this "parentNode")) (option_null (abbrv "node")) ;
+
+        def_method "node" "first_child"
+          ~doc:"Retrieves the first child of a node, if any"
+          [] (get (field this "firstChild")) (option_null (abbrv "node")) ;
+
+        def_method "node" "last_child"
+          ~doc:"Retrieves the last child of a node, if any"
+          [] (get (field this "lastChild")) (option_null (abbrv "node")) ;
+
+        def_method "node" "previous_sibling"
+          ~doc:"Retrieves the previous sibling of a node, if any"
+          [] (get (field this "previousSibling")) (option_null (abbrv "node")) ;
+
+        def_method "node" "next_sibling"
+          ~doc:"Retrieves the next sibling of a node, if any"
+          [] (get (field this "nextSibling")) (option_null (abbrv "node")) ;
+
+        def_method "node" "contains"
+          ~doc:"Checks if the a node contains another one"
+          [ curry_arg "desc" (abbrv "node" @@ arg 0) ]
+          (call_method "contains")
+          bool ;
+
+        def_method "node" "clone_node"
+          ~doc:"Clones a node, recursively if [deep] is [true]."
+          [ opt_arg "deep" (bool @@ arg 0) ]
+          (call_method "cloneNode")
+          (abbrv "node") ;
+
+        def_method "node" "insert_before"
+          ~doc:"Insert [sp1] before [sp2], where both must be children of [this]."
+          [ curry_arg "sp1" (abbrv "node" @@ arg 0) ;
+            curry_arg "sp2" (abbrv "node" @@ arg 1)]
+          (call_method "insertBefore")
+          void ;
+
+        def_method "node" "insert_after"
+          ~doc:"Insert [sp1] before [sp2], where both must be children of [this]."
+          [ curry_arg "sp1" (abbrv "node" @@ arg 0) ;
+            curry_arg "sp2" (abbrv "node" @@ var "tmp")]
+          (seq [ set (arg 1) (field (var "tmp") "nextSibling") ;
+                 call_method "insertBefore" ])
+          void ;
+
+
+        (* (* what to do with bitmasks ?? *)
+        def_method "node" "compare_position"
+          ~doc:"Checks if the a node contains another one"
+          [ curry_arg "desc" (abbrv "node" @@ arg 0) ]
+          (call_method "contains")
+          bool ;
+        *)
+      ] ;
+
+      section "Element operations" [
+
+        def_function "get_element_by_id"
+          ~doc:"Retrieve a DOM node from its ID in the main document"
+          [ curry_arg "n" (abbrv "element" @@ arg 0) ]
+          (call (jsglobal "document.getElementById"))
+          (option_null (abbrv "element")) ;
+
+        def_function "get_elements_by_tag"
+          ~doc:"Retrieve the list of nodes with a given tag"
+          [ curry_arg "n" (abbrv "element" @@ arg 0) ]
+          (call (jsglobal "document.getElementsByTagName"))
+          (list (abbrv "element")) ;
+
+        def_function "get_elements_by_name"
+          ~doc:"Retrieve the list of nodes with a given name attribute"
+          [ curry_arg "n" (abbrv "element" @@ arg 0) ]
+          (call (jsglobal "document.getElementsByName"))
+          (list (abbrv "element")) ;
+
+        def_function "get_elements_by_class"
+          ~doc:"Retrieve the list of nodes with a given CSS class attribute"
+          [ curry_arg "n" (abbrv "element" @@ arg 0) ]
+          (call (jsglobal "document.getElementsByClassName"))
+          (list (abbrv "element")) ;
+
+      ] ;
     ]
+  ]
+
