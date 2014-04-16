@@ -1316,25 +1316,29 @@ let browser_component =
 
         def_function "get_element_by_id"
           ~doc:"Retrieve a DOM node from its ID in the main document."
-          [ curry_arg "elt" (abbrv "element" @@ arg 0) ]
+          [ curry_arg "elt" (abbrv "element" @@ arg 0);
+            curry_arg "id" (string @@ arg 1)]
           (call (jsglobal "document.getElementById"))
           (option_null (abbrv "element")) ;
 
         def_function "get_elements_by_tag"
           ~doc:"Retrieve the list of nodes with a given tag."
-          [ curry_arg "elt" (abbrv "element" @@ arg 0) ]
+          [ curry_arg "elt" (abbrv "element" @@ arg 0);
+            curry_arg "tag" (string @@ arg 1)]
           (call (jsglobal "document.getElementsByTagName"))
           (list (abbrv "element")) ;
 
         def_function "get_elements_by_name"
           ~doc:"Retrieve the list of nodes with a given name attribute."
-          [ curry_arg "elt" (abbrv "element" @@ arg 0) ]
+          [ curry_arg "elt" (abbrv "element" @@ arg 0);
+            curry_arg "name" (string @@ arg 1)]
           (call (jsglobal "document.getElementsByName"))
           (list (abbrv "element")) ;
 
         def_function "get_elements_by_class"
           ~doc:"Retrieve the list of nodes with a given CSS class attribute."
-          [ curry_arg "elt" (abbrv "element" @@ arg 0) ]
+          [ curry_arg "elt" (abbrv "element" @@ arg 0);
+            curry_arg "cls" (string @@ arg 1)]
           (call (jsglobal "document.getElementsByClassName"))
           (list (abbrv "element")) ;
 
