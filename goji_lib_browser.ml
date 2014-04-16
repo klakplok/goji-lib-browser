@@ -1314,11 +1314,10 @@ let browser_component =
 
       section "Element operations" [
 
-        def_function "get_element_by_id"
+        def_method "document" "get_element_by_id"
           ~doc:"Retrieve a DOM node from its ID in the main document."
-          [ curry_arg "elt" (abbrv "element" @@ arg 0);
-            curry_arg "id" (string @@ arg 1)]
-          (call (jsglobal "document.getElementById"))
+          [ curry_arg "id" (string @@ arg 0)]
+          (call_method "getElementById")
           (option_null (abbrv "element")) ;
 
         def_function "get_elements_by_tag"
