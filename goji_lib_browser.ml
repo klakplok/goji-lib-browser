@@ -1118,7 +1118,7 @@ let browser_component =
     browser_package "Browser" [
     structure "DOM"
       ~doc:"Operations on the document." [
-      section "Types and Cercions" [ 
+      section "Types and Coercions" [
 
         def_type
           ~doc:"A specific type for element nodes (named markups in HTML)."
@@ -1174,7 +1174,7 @@ let browser_component =
       section "Constructors" [
 
         def_value "document"
-          ~doc:"Retrives the main document."
+          ~doc:"Retrieves the main document."
           (get (jsglobal "document"))
           (abbrv "document") ;
 
