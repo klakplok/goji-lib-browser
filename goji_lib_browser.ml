@@ -1184,7 +1184,7 @@ let browser_component =
           (call_method ~sto:(jsglobal "document") "createElement")
           (abbrv "element") ;
 
-        def_function "create_element_mode"
+        def_function "create_element_node"
           ~doc:"Build a new element node from its tag (in the main document) \
                 and returns it as a generic node."
           [ curry_arg "tag" (string @@ arg 0) ]
